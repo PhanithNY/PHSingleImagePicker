@@ -16,7 +16,7 @@ Below iOS 14, please include **NSPhotoLibraryUsageDescription** key in plist.
 # Usage
 ```
 
-let imagePicker = PHSingleImagePicker.shared
+let imagePicker = PHSingleImagePickerManager.shared
 // Optional: Default is 2_000 which mean image width and height cannot reach more than 2_000
 imagePicker.preferredMaxSize = 2_000
 imagePicker.show(.photoLibrary, on: self) { result in
