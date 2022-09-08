@@ -12,12 +12,25 @@ import Photos
 public final class PHSingleImagePickerManager: NSObject {
   
   public typealias WingImagePickerResult = (data: Data, name: String)
-  public typealias Handler = (Result<WingImagePickerResult, PHSingleImagePickerManagerError>) -> Void
+  public typealias Handler = (Result<[WingImagePickerResult], PHSingleImagePickerManagerError>) -> Void
   
   // MARK: - Public properties
   
   public static let shared = PHSingleImagePickerManager()
-  public var preferredMaxSize: Int = 2_000
+  public var onDownsampling: (() -> Void)?
+  public var onFinishDownsampling: (() -> Void)?
+  
+  public var preferredMaxSize: Int = 2_000 {
+    didSet {
+      initPHPickerController()
+    }
+  }
+  
+  public var selectionLimit: Int = 1 {
+    didSet {
+      initPHPickerController()
+    }
+  }
   
   // MARK: - Properties
   
@@ -32,12 +45,18 @@ public final class PHSingleImagePickerManager: NSObject {
     
     imagePickerController = UIImagePickerController()
     imagePickerController.delegate = self
-    
+    initPHPickerController()
+  }
+  
+  private func initPHPickerController() {
     if #available(iOS 14, *) {
       var config = PHPickerConfiguration()
-      config.selectionLimit = 1
+      config.selectionLimit = selectionLimit
       config.filter = .images
       config.preferredAssetRepresentationMode = .current
+      if #available(iOS 15.0, *) {
+        config.selection = .ordered
+      }
       
       phPickerViewController = PHPickerViewController(configuration: config)
       (phPickerViewController as? PHPickerViewController)?.delegate = self
@@ -117,24 +136,26 @@ extension PHSingleImagePickerManager: UIImagePickerControllerDelegate, UINavigat
     
     if #available(iOS 11.0, *), let url = info[.imageURL] as? URL {
         ImagePickerCompressor.downsamplingImage(at: url, to: preferredMaxSize) { [unowned self] _result in
-          if let result = _result {
-            let filename: String
-            if let asset = info[.phAsset] as? PHAsset,
-               let _filename = PHAssetResource.assetResources(for: asset).first?.originalFilename.filename {
-              filename = _filename
+          DispatchQueue.main.async {
+            if let result = _result {
+              let filename: String
+              if let asset = info[.phAsset] as? PHAsset,
+                 let _filename = PHAssetResource.assetResources(for: asset).first?.originalFilename.filename {
+                filename = _filename
+              } else {
+                filename = result.name
+              }
+              self.pickImageCallback?(.success([(data: result.data, name: filename)]))
             } else {
-              filename = result.name
+              self.pickImageCallback?(.failure(.downsamplingFailure))
             }
-            self.pickImageCallback?(.success((data: result.data, name: filename)))
-          } else {
-            self.pickImageCallback?(.failure(.downsamplingFailure))
           }
         }
       return
     }
     
     if let image = info[.originalImage] as? UIImage, let data = image.jpegData(compressionQuality: 0.75) {
-      pickImageCallback?(.success((data: data, name: UUID().uuidString)))
+      pickImageCallback?(.success([(data: data, name: UUID().uuidString)]))
     } else {
       pickImageCallback?(.failure(.unknown))
     }
@@ -145,12 +166,20 @@ extension PHSingleImagePickerManager: UIImagePickerControllerDelegate, UINavigat
 extension PHSingleImagePickerManager: PHPickerViewControllerDelegate {
   public func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
     let preferredMaxSize = self.preferredMaxSize
-    picker.dismiss(animated: true) {
+    picker.dismiss(animated: true) { [unowned self] in
+      if !results.isEmpty {
+        self.onDownsampling?()
+      }
+      
       PHPickerResultCompressor.downsampling(results, to: preferredMaxSize) { [unowned self] results in
-        if let result = results.first as? WingImagePickerResult {
-          self.pickImageCallback?(.success((data: result.data, name: result.name)))
-        } else {
-          self.pickImageCallback?(.failure(.downsamplingFailure))
+        DispatchQueue.main.async {
+          if let results = results as? [WingImagePickerResult] {
+            let values = results.map { (data: $0.data, name: $0.name) }
+            self.pickImageCallback?(.success(values))
+          } else {
+            self.pickImageCallback?(.failure(.downsamplingFailure))
+          }
+          self.onFinishDownsampling?()
         }
       }
     }
