@@ -65,7 +65,9 @@ public final class PHSingleImagePickerManager: NSObject {
   
   // MARK: - Actions
   
-  public final func show(_ type: SourceType, on viewController: UIViewController, _ then: Handler?) {
+  public final func show(_ type: SourceType,
+                         on viewController: UIViewController,
+                         _ then: Handler?) {
     switch type {
     case .photoLibrary:
       openGallery(viewController) { result in
@@ -76,10 +78,17 @@ public final class PHSingleImagePickerManager: NSObject {
       openCamera(viewController) { result in
         then?(result)
       }
+      
+    case .fronCamera:
+      openCamera(viewController, camera: .front) { result in
+        then?(result)
+      }
     }
   }
   
-  private func openCamera(_ viewController: UIViewController, _ callback: @escaping (Handler)) {
+  private func openCamera(_ viewController: UIViewController,
+                          camera: UIImagePickerController.CameraDevice? = nil,
+                          _ callback: @escaping (Handler)) {
     pickImageCallback = callback
     
     CamearaPermissionManager.shared.requestAuthorization { [unowned self] status in
@@ -92,6 +101,9 @@ public final class PHSingleImagePickerManager: NSObject {
           }
           
           self.imagePickerController.sourceType = .camera
+          if let camera = camera, UIImagePickerController.isCameraDeviceAvailable(camera) {
+            self.imagePickerController.cameraDevice = camera
+          }
           viewController.present(self.imagePickerController, animated: true)
           
         default:
@@ -189,6 +201,7 @@ extension PHSingleImagePickerManager: PHPickerViewControllerDelegate {
 @objc public enum SourceType: Int {
   case photoLibrary
   case camera
+  case fronCamera // Keep objc support
 }
 
 public extension Data {
