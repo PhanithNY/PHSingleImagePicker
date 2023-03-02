@@ -19,6 +19,7 @@ public final class PHSingleImagePickerManager: NSObject {
   public static let shared = PHSingleImagePickerManager()
   public var onDownsampling: (() -> Void)?
   public var onFinishDownsampling: (() -> Void)?
+  public var onCancel: (() -> Void)?
   
   public var preferredMaxSize: Int = 2_000 {
     didSet {
@@ -59,6 +60,14 @@ public final class PHSingleImagePickerManager: NSObject {
       }
       
       phPickerViewController = PHPickerViewController(configuration: config)
+      if #available(iOS 13.0, *) {
+        phPickerViewController.isModalInPresentation = true
+      }
+      
+      if UIDevice.current.userInterfaceIdiom == .phone {
+        phPickerViewController.modalPresentationStyle = .fullScreen
+      }
+      
       (phPickerViewController as? PHPickerViewController)?.delegate = self
     }
   }
@@ -141,6 +150,7 @@ public final class PHSingleImagePickerManager: NSObject {
 extension PHSingleImagePickerManager: UIImagePickerControllerDelegate, UINavigationControllerDelegate {
   public func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
     picker.dismiss(animated: true, completion: nil)
+    onCancel?()
   }
   
   public func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
