@@ -60,9 +60,7 @@ public final class PHSingleImagePickerManager: NSObject {
       }
       
       phPickerViewController = PHPickerViewController(configuration: config)
-      if #available(iOS 13.0, *) {
-        phPickerViewController.isModalInPresentation = true
-      }
+      phPickerViewController.isModalInPresentation = true
       
       if UIDevice.current.userInterfaceIdiom == .phone {
         phPickerViewController.modalPresentationStyle = .fullScreen
@@ -167,7 +165,12 @@ extension PHSingleImagePickerManager: UIImagePickerControllerDelegate, UINavigat
               } else {
                 filename = result.name
               }
-              self.pickImageCallback?(.success([(data: result.data, name: filename)]))
+              if let image = UIImage(data: result.data), 
+                  let data = image.fixOrientation().jpegData(compressionQuality: 1.0) {
+                self.pickImageCallback?(.success([(data: data, name: filename)]))
+              } else {
+                self.pickImageCallback?(.success([(data: result.data, name: filename)]))
+              }
             } else {
               self.pickImageCallback?(.failure(.downsamplingFailure))
             }
@@ -176,8 +179,14 @@ extension PHSingleImagePickerManager: UIImagePickerControllerDelegate, UINavigat
       return
     }
     
-    if let image = info[.originalImage] as? UIImage, let data = image.jpegData(compressionQuality: 0.75) {
-      pickImageCallback?(.success([(data: data, name: UUID().uuidString)]))
+    if let image = info[.originalImage] as? UIImage {
+      let scaleFactor: CGFloat = image.size.width > 1024 ? 1024/image.size.width : image.size.width
+      let size = CGSize(width: image.size.width * scaleFactor, height: image.size.height * scaleFactor)
+      if let data = image.resize(to: size).fixOrientation().jpegData(compressionQuality: 0.75) {
+        pickImageCallback?(.success([(data: data, name: UUID().uuidString)]))
+      } else {
+        pickImageCallback?(.failure(.unknown))
+      }
     } else {
       pickImageCallback?(.failure(.unknown))
     }
@@ -216,4 +225,103 @@ extension PHSingleImagePickerManager: PHPickerViewControllerDelegate {
 
 public extension Data {
   var sizeInMB: Double { Double(self.count) / (1024 * 1024) }
+}
+
+import Foundation
+
+fileprivate extension UIImage {
+  func resize(to size: CGSize) -> UIImage {
+    if size.width <= 0 || size.height <= 0 {
+      return self
+    }
+    UIGraphicsBeginImageContextWithOptions(size, false, scale)
+    draw(in: CGRect(x: 0, y: 0, width: size.width, height: size.height))
+    let image = UIGraphicsGetImageFromCurrentImageContext()
+    UIGraphicsEndImageContext()
+    return image ?? self
+  }
+  
+  func fixOrientation() -> UIImage  {
+    guard let cgImage = self.cgImage else {
+      return self
+    }
+    
+    let width = cgImage.width
+    let height = cgImage.height
+    
+    var transform: CGAffineTransform = .identity
+    var bounds = CGRect(x: 0, y: 0, width: width, height: height)
+    let scaleRatio = bounds.size.width / CGFloat(width)
+    let imageSize = CGSize(width: width, height: height)
+    var boundHeight: CGFloat
+    let orient = self.imageOrientation
+    
+    switch(orient) {
+    case .up: //EXIF = 1
+      transform = .identity
+      
+    case .upMirrored: //EXIF = 2
+      transform = CGAffineTransformMakeTranslation(imageSize.width, 0.0)
+      transform = CGAffineTransformScale(transform, -1.0, 1.0)
+      
+    case .down: //EXIF = 3
+      transform = CGAffineTransformMakeTranslation(imageSize.width, imageSize.height)
+      transform = CGAffineTransformRotate(transform, .pi)
+      
+    case .downMirrored: //EXIF = 4
+      transform = CGAffineTransformMakeTranslation(0.0, imageSize.height)
+      transform = CGAffineTransformScale(transform, 1.0, -1.0)
+      
+    case .leftMirrored: //EXIF = 5
+      boundHeight = bounds.size.height
+      bounds.size.height = bounds.size.width
+      bounds.size.width = boundHeight
+      transform = CGAffineTransformMakeTranslation(imageSize.height, imageSize.width)
+      transform = CGAffineTransformScale(transform, -1.0, 1.0)
+      transform = CGAffineTransformRotate(transform, 3.0 * .pi / 2.0)
+      
+    case .left: //EXIF = 6
+      boundHeight = bounds.size.height
+      bounds.size.height = bounds.size.width
+      bounds.size.width = boundHeight
+      transform = CGAffineTransformMakeTranslation(0.0, imageSize.width)
+      transform = CGAffineTransformRotate(transform, 3.0 * .pi / 2.0)
+      
+    case .rightMirrored: //EXIF = 7
+      boundHeight = bounds.size.height
+      bounds.size.height = bounds.size.width
+      bounds.size.width = boundHeight
+      transform = CGAffineTransformMakeScale(-1.0, 1.0)
+      transform = CGAffineTransformRotate(transform, .pi / 2.0)
+      
+    case .right: //EXIF = 8
+      boundHeight = bounds.size.height
+      bounds.size.height = bounds.size.width
+      bounds.size.width = boundHeight
+      transform = CGAffineTransformMakeTranslation(imageSize.height, 0.0)
+      transform = CGAffineTransformRotate(transform, .pi / 2.0)
+      
+    default:
+      fatalError("Invalid image orientation")
+    }
+    
+    UIGraphicsBeginImageContext(bounds.size);
+    
+    let context = UIGraphicsGetCurrentContext();
+    
+    if (orient == .right || orient == .left) {
+      context?.scaleBy(x: -scaleRatio, y: scaleRatio)
+      context?.translateBy(x: CGFloat(-height), y: 0.0)
+    } else {
+      context?.scaleBy(x: scaleRatio, y: -scaleRatio)
+      context?.translateBy(x: 0.0, y: CGFloat(-height))
+    }
+    
+    context?.concatenate(transform)
+    context?.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+    let imageCopy = UIGraphicsGetImageFromCurrentImageContext()
+    UIGraphicsEndImageContext()
+    
+    return imageCopy ?? self
+  }
 }
