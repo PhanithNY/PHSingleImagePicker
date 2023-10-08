@@ -90,6 +90,9 @@ public final class PHSingleImagePickerManager: NSObject {
       openCamera(viewController, camera: .front) { result in
         then?(result)
       }
+      
+    case .video:
+      break
     }
   }
   
@@ -221,6 +224,7 @@ extension PHSingleImagePickerManager: PHPickerViewControllerDelegate {
   case photoLibrary
   case camera
   case fronCamera // Keep objc support
+  case video
 }
 
 public extension Data {
