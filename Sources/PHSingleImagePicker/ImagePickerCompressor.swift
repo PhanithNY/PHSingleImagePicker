@@ -11,36 +11,33 @@ import PhotosUI
 typealias PHSingleImagePickerCompressionResult = (data: Data, name: String)
 
 public struct ImagePickerCompressor {
-    
-  typealias CompressionResult = (PHSingleImagePickerCompressionResult?) -> Void
   
-  static func downsamplingImage(at url: URL, to maxSize: Int = 2_000, then: CompressionResult?) {
+  public typealias CompressionResult = (data: Data, name: String)
+  
+  public static func downsamplingImage(at url: URL, to maxSize: Int = 2_000) -> CompressionResult? {
     
     // Create the CGImage from url,
     // @see https://developer.apple.com/videos/play/wwdc2018/219
     let sourceOptions: CFDictionary = [kCGImageSourceShouldCache: false] as CFDictionary
     
     guard let source = CGImageSourceCreateWithURL(url as CFURL, sourceOptions) else {
-      then?(nil)
-      return
+      return nil
     }
     
     let downsampleOptions: CFDictionary = [
       kCGImageSourceCreateThumbnailFromImageAlways: true,
       kCGImageSourceCreateThumbnailWithTransform: true,
       kCGImageSourceThumbnailMaxPixelSize: maxSize
-      ] as CFDictionary
+    ] as CFDictionary
     
     guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, downsampleOptions) else {
-      then?(nil)
-      return
+      return nil
     }
     
     // Convert CGImage we've just created into data
     let data = NSMutableData()
     guard let imageDestination = CGImageDestinationCreateWithData(data, kUTTypeJPEG, 1, nil) else {
-      then?(nil)
-      return
+      return nil
     }
     
     // Don't compress PNGs, they're too pretty
@@ -54,13 +51,12 @@ public struct ImagePickerCompressor {
     CGImageDestinationFinalize(imageDestination)
     
     // This will return the filename from tmp directory, which is not the original filename
-    // Check solution in WingImagePickerManager.swift
-    then?((data: data as Data, name: url.lastPathComponent.filename))
+    return (data: data as Data, name: url.lastPathComponent.filename)
   }
 }
 
 extension String {
-  var filename: String {
+  public var filename: String {
     if let range: Range<String.Index> = self.range(of: ".") {
       let index: Int = self.distance(from: self.startIndex, to: range.lowerBound)
       return String(self.prefix(index))

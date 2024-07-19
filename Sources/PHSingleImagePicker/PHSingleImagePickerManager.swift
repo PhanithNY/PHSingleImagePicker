@@ -158,27 +158,28 @@ extension PHSingleImagePickerManager: UIImagePickerControllerDelegate, UINavigat
     picker.dismiss(animated: true, completion: nil)
     
     if #available(iOS 11.0, *), let url = info[.imageURL] as? URL {
-        ImagePickerCompressor.downsamplingImage(at: url, to: preferredMaxSize) { [unowned self] _result in
-          DispatchQueue.main.async {
-            if let result = _result {
-              let filename: String
-              if let asset = info[.phAsset] as? PHAsset,
-                 let _filename = PHAssetResource.assetResources(for: asset).first?.originalFilename.filename {
-                filename = _filename
-              } else {
-                filename = result.name
-              }
-              if let image = UIImage(data: result.data), 
-                  let data = image.fixOrientation().jpegData(compressionQuality: 1.0) {
-                self.pickImageCallback?(.success([(data: data, name: filename)]))
-              } else {
-                self.pickImageCallback?(.success([(data: result.data, name: filename)]))
-              }
-            } else {
-              self.pickImageCallback?(.failure(.downsamplingFailure))
-            }
+      if let result = ImagePickerCompressor.downsamplingImage(at: url, to: preferredMaxSize) {
+        DispatchQueue.main.async {
+          let filename: String
+          if let asset = info[.phAsset] as? PHAsset,
+             let _filename = PHAssetResource.assetResources(for: asset).first?.originalFilename.filename {
+            filename = _filename
+          } else {
+            filename = result.name
+          }
+          
+          if let image = UIImage(data: result.data),
+             let data = image.fixOrientation().jpegData(compressionQuality: 1.0) {
+            self.pickImageCallback?(.success([(data: data, name: filename)]))
+          } else {
+            self.pickImageCallback?(.success([(data: result.data, name: filename)]))
           }
         }
+      } else {
+        DispatchQueue.main.async {
+          self.pickImageCallback?(.failure(.downsamplingFailure))
+        }
+      }
       return
     }
     
