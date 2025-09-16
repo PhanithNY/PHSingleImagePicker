@@ -9,11 +9,11 @@ import MobileCoreServices
 import PhotosUI
 
 @available(iOS 14.0, *)
-struct PHPickerResultCompressor {
+public struct PHPickerResultCompressor {
   
   typealias CompressionResult = ([PHSingleImagePickerCompressionResult?]) -> Void
   
-  static func downsampling(_ results: [PHPickerResult], to maxSize: Int = 2_000, then: CompressionResult?) {
+  public static func downsampling(_ results: [PHPickerResult], to maxSize: Int = 2_000, then: CompressionResult?) {
     
     // loadFileRepresentation fires on an async queue,
     // So, create a queue to ensure we’re not writing to this array of Data across multiple threads

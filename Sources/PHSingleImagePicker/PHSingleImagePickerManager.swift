@@ -204,6 +204,8 @@ extension PHSingleImagePickerManager: PHPickerViewControllerDelegate {
     picker.dismiss(animated: true) { [unowned self] in
       if !results.isEmpty {
         self.onDownsampling?()
+      } else {
+        self.onCancel?()
       }
       
       PHPickerResultCompressor.downsampling(results, to: preferredMaxSize) { [unowned self] results in
