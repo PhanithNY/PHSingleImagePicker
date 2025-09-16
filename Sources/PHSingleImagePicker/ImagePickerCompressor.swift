@@ -8,7 +8,7 @@
 import MobileCoreServices
 import PhotosUI
 
-typealias PHSingleImagePickerCompressionResult = (data: Data, name: String)
+public typealias PHSingleImagePickerCompressionResult = (data: Data, name: String)
 
 public struct ImagePickerCompressor {
   

@@ -11,7 +11,7 @@ import PhotosUI
 @available(iOS 14.0, *)
 public struct PHPickerResultCompressor {
   
-  typealias CompressionResult = ([PHSingleImagePickerCompressionResult?]) -> Void
+  public typealias CompressionResult = ([PHSingleImagePickerCompressionResult?]) -> Void
   
   public static func downsampling(_ results: [PHPickerResult], to maxSize: Int = 2_000, then: CompressionResult?) {
     
