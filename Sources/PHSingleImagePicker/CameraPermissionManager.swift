@@ -14,9 +14,9 @@ public final class CameraPermissionManager {
   
   private init() {}
   
-  var permission: AVAuthorizationStatus = .restricted
+  public var permission: AVAuthorizationStatus = .restricted
   
-  func requestAuthorization(completionHandler: @escaping (AVAuthorizationStatus) -> Void) {
+  public func requestAuthorization(completionHandler: @escaping (AVAuthorizationStatus) -> Void) {
     
     let status = AVCaptureDevice.authorizationStatus(for: AVMediaType.video)
     switch status{
@@ -49,7 +49,7 @@ public final class CameraPermissionManager {
     }
   }
   
-  func requestPhotoAuthorization(completionHandler: @escaping (PHAuthorizationStatus) -> Void) {
+  public func requestPhotoAuthorization(completionHandler: @escaping (PHAuthorizationStatus) -> Void) {
     let status = PHPhotoLibrary.authorizationStatus()
     switch status {
     case .notDetermined:
@@ -64,7 +64,7 @@ public final class CameraPermissionManager {
     }
   }
   
-  func isAuthorized() -> Bool {
+  public func isAuthorized() -> Bool {
     permission == .authorized
   }
 }
