@@ -101,7 +101,7 @@ public final class PHSingleImagePickerManager: NSObject {
                           _ callback: @escaping (Handler)) {
     pickImageCallback = callback
     
-    CamearaPermissionManager.shared.requestAuthorization { [unowned self] status in
+    CameraPermissionManager.shared.requestAuthorization { [unowned self] status in
       DispatchQueue.main.async {
         switch status {
         case .authorized:
@@ -130,7 +130,7 @@ public final class PHSingleImagePickerManager: NSObject {
     if #available(iOS 14.0, *) {
       viewController.present(phPickerViewController, animated: true, completion: nil)
     } else {
-      CamearaPermissionManager.shared.requestPhotoAuthorization { [unowned self] status in
+      CameraPermissionManager.shared.requestPhotoAuthorization { [unowned self] status in
         DispatchQueue.main.async {
           switch status {
           case .authorized:

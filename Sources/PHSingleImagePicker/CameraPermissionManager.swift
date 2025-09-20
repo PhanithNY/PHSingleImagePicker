@@ -9,8 +9,8 @@ import UIKit
 import AVFoundation
 import Photos
 
-public final class CamearaPermissionManager {
-  static let shared = CamearaPermissionManager()
+public final class CameraPermissionManager {
+  public static let shared = CameraPermissionManager()
   
   private init() {}
   
@@ -23,22 +23,29 @@ public final class CamearaPermissionManager {
     case .authorized:
       permission = .authorized
       completionHandler(permission)
+      
     case .denied, .restricted:
       permission = .denied
       completionHandler(permission)
+      
     case .notDetermined:
       AVCaptureDevice.requestAccess(for: .video) { granted in
         DispatchQueue.main.async {
-          if !granted {
-            self.permission = .denied
-            completionHandler(self.permission)
-          } else {
+          switch granted {
+          case true:
             self.permission = .authorized
+            completionHandler(self.permission)
+            
+          case false:
+            self.permission = .denied
             completionHandler(self.permission)
           }
         }
       }
-    default: break
+      
+    @unknown default:
+      permission = .denied
+      completionHandler(permission)
     }
   }
   
@@ -48,11 +55,7 @@ public final class CamearaPermissionManager {
     case .notDetermined:
       PHPhotoLibrary.requestAuthorization { _status in
         DispatchQueue.main.async {
-          if _status == .authorized {
-            completionHandler(.authorized)
-          }else {
-            completionHandler(.denied)
-          }
+          completionHandler(_status == .authorized ? .authorized : .denied)
         }
       }
       
